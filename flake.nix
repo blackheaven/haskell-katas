@@ -4,31 +4,29 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs";
     flake-utils.url = "github:numtide/flake-utils";
+    PyF.url = "github:guibou/PyF";
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs = { self, nixpkgs, flake-utils, ... }@inputs:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
 
-        github = owner: repo: rev: sha256:
-          builtins.fetchTarball { inherit sha256; url = "https://github.com/${owner}/${repo}/archive/${rev}.tar.gz"; };
-
-        sources = { };
-
         jailbreakUnbreak = pkg:
           pkgs.haskell.lib.doJailbreak (pkgs.haskell.lib.dontCheck (pkgs.haskell.lib.unmarkBroken pkg));
 
-        haskellPackages = pkgs.haskell.packages.ghc923.override {
+        haskellPackages = pkgs.haskell.packages.ghc927.override {
           overrides = hself: hsuper: { };
         };
       in
       rec
       {
         packages.kata = # (ref:haskell-package-def)
-          haskellPackages.callCabal2nix "kata" ./. rec {
-            # Dependency overrides go here
-          };
+          haskellPackages.callCabal2nix "kata" ./.
+            rec {
+              # Dependency overrides go here
+              PyF = haskellPackages.callCabal2nix "PyF" inputs.PyF { };
+            };
 
         defaultPackage = packages.kata;
 
@@ -38,7 +36,7 @@
               name = "scripts";
               paths = pkgs.lib.mapAttrsToList pkgs.writeShellScriptBin {
                 ormolu = ''
-                  ${pkgs.ormolu}/bin/ormolu -o -XDataKinds -o -XDefaultSignatures -o -XDeriveAnyClass -o -XDeriveGeneric -o -XDerivingStrategies -o -XDerivingVia -o -XDuplicateRecordFields -o -XFlexibleContexts -o -XGADTs -o -XGeneralizedNewtypeDeriving -o -XKindSignatures -o -XLambdaCase -o -XNoImplicitPrelude -o -XOverloadedLists -o -XOverloadedStrings -o -XRankNTypes -o -XRecordWildCards -o -XScopedTypeVariables -o -XTypeApplications -o -XTypeFamilies -o -XTypeOperators -o -XNoImportQualifiedPost -o -XOverloadedRecordDot $@
+                  ${pkgs.ormolu}/bin/ormolu -o -XNoImportQualifiedPost -o -XOverloadedRecordDot $@
                 '';
               };
             };
@@ -48,7 +46,6 @@
               haskell-language-server
               ghcid
               cabal-install
-              haskell-ci
               scripts
             ];
             inputsFrom = [
